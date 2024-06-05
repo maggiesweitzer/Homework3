@@ -1,0 +1,261 @@
+---
+title: "Homework 3"
+format: html
+editor: visual
+---
+
+## Task 1: Conceptual Questions
+
+1.  If your working directory is myfolder/homework/, what *relative* path would you specify to get the file located at myfolder/MyData.csv?
+
+> The relative path would be ../MyData.csv.
+
+2.  What are the major benefits of using R projects?
+
+> R projects easily interface with github to provide version control, but allows for working within a common local file structure that enables specying relative paths to facilitate sharing code. This makes it easy to work on your project and collaborate with others.
+
+3.  What is git and what is github?
+
+> Git is a version control software and github is an online hosting service for git-based projects
+
+4.  What are the two main differences between a tibble and a data.frame?
+
+> A tibble allows for a broader range of unusual characters (such as parentheses) in column names. It also prints a cleaner view of the layout, which includes specifying the data type for each column and only presenting the first \~10 rows to avoid cluttering up the console.
+
+5.  Rewrite the following nested function call using baseR's chaining operator:
+
+arrange(filter(select(as_tibble(iris), starts_with("Petal"), Species), Petal.Length \< 1.55), Species)
+
+> Rewritten code shown below:
+>
+> as_tibble(iris) |> select(starts_with("Petal"), Species) |> filter(Petal.Length \< 1.55) |> arrange(Species)
+
+6.  What is meant by long format data and wide format data? Which do we generally prefer for statistical analysis?
+
+> Long format means each observation is on a different row. In wide formate, repeated observations for the same cases are listed in different columns in the same row. Long format is generally preferred for statistical analysis.
+
+## Task 2: Reading Delimited Data
+
+### Glass Data
+
+1.  Read data from glass.data directly into R, add column names, and print out the tibble.
+
+```{r}
+library(tidyverse)
+glass_tbl <- read_csv("../R Scripts/R Course/glass.data", 
+         col_names = c("Id", "RI", "Na", "Mg", "Al", "Si", 
+                       "K", "Ca", "Ba", "Fe", "Type_of_glass"))
+print(glass_tbl)
+```
+
+2.  Overwrite Type of Glass using mutate() to create a character string version.
+
+```{r}
+glass_tbl |>
+  mutate(Type_of_glass = if_else(Type_of_glass==1, "build_wind_flt_proc", 
+                  if_else(Type_of_glass==2, "build_wind_non_flt_proc", 
+                  if_else(Type_of_glass==3, "veh_wind_flt_proc",
+                  if_else(Type_of_glass==4, "veh_wind_non_flt_proc",
+                  if_else(Type_of_glass==5, "containers",
+                  if_else(Type_of_glass==6, "tableware", 
+                  if_else(Type_of_glass==7, "headlamp", "other"))))))))
+```
+
+3.  Keep only observations where Fe \< 0.2 and Type of Glass is "tableware" or "headlamp".
+
+```{r}
+glass_tbl |>
+  mutate(Type_of_glass = if_else(Type_of_glass==1, "build_wind_flt_proc", 
+                  if_else(Type_of_glass==2, "build_wind_non_flt_proc", 
+                  if_else(Type_of_glass==3, "veh_wind_flt_proc",
+                  if_else(Type_of_glass==4, "veh_wind_non_flt_proc",
+                  if_else(Type_of_glass==5, "containers",
+                  if_else(Type_of_glass==6, "tableware", 
+                  if_else(Type_of_glass==7, "headlamp", "other")))))))) |>
+  filter(Fe < 0.2, Type_of_glass == c("tableware", "headlamp"))
+```
+
+### Yeast Data
+
+1.  Read data from glass.data directly into R, add column names, and print out the tibble.
+
+```{r}
+yeast_tbl <- read_fwf("../R Scripts/R Course/yeast.data",
+         fwf_widths(c(12, 6, 6, 6, 6, 6, 6, 6, 6, 3),
+                    c("seq_name", "mcg", "gvh", "alm", "mit", "erl",
+                      "pox", "vac", "nuc", "class")))
+print(yeast_tbl)
+```
+
+2.  Remove seq_name and nuc columns
+
+```{r}
+yeast_tbl |>
+  select(-seq_name, -nuc)
+```
+
+3.  Add columns for mean and median for each numeric value at each class grouping.
+
+```{r}
+yeast_tbl |>
+  select(-seq_name, -nuc) |>
+  group_by(class) |>
+  mutate(across(where(is.numeric), list(mean = mean, median = median),
+                .names = "{.col}_{.fn}"))
+```
+
+## Task 2: Combining Excel and Delimited Data
+
+1.  Import white wine excel data.
+
+```{r}
+library(readxl)
+white_tbl <- read_excel("../R Scripts/R Course/white-wine.xlsx")
+white_tbl
+```
+
+2.  Import alternate variable names and overwrite existing names.
+
+```{r}
+wine_names <- read_excel("../R Scripts/R Course/white-wine.xlsx", 
+      sheet = excel_sheets("../R Scripts/R Course/white-wine.xlsx")[2])
+
+colnames(white_tbl) <- wine_names$Variables
+white_tbl
+
+```
+
+3.  Add a column to indicate these wines are white.
+
+```{r}
+white_tbl <- white_tbl |>
+  mutate(type = "white")
+```
+
+4.  Read in red-wine.csv, replace variable names, and indicate type as "red".
+
+```{r}
+red_tbl <- read_delim("../R Scripts/R Course/red-wine.csv",
+                      delim = ";")
+red_tbl
+
+colnames(red_tbl) <- wine_names$Variables
+
+red_tbl <- red_tbl |>
+  mutate(type = "red")
+```
+
+5.  Combine the two datasets into one.
+
+```{r}
+wine_tbl <- dplyr::bind_rows(red_tbl, white_tbl)
+wine_tbl
+```
+
+6.  Filter to only look at quality \> 6.5 and alcohol \< 13.2.
+
+```{r}
+wine_tbl |>
+  filter(quality > 6.5, alcohol < 13.2)
+```
+
+7.  Sort data from highest quality to lowest
+
+```{r}
+wine_tbl |>
+  filter(quality > 6.5, alcohol < 13.2) |>
+  arrange(desc(quality))
+```
+
+8.  Select only variables containing acid, alcohol, type, and quality
+
+```{r}
+wine_tbl |>
+  filter(quality > 6.5, alcohol < 13.2) |>
+  arrange(desc(quality)) |>
+  select(contains("acid"), "alcohol", "type", "quality")
+```
+
+9.  Add mean and sd of alcohol for each setting of quality
+
+```{r}
+wine_tbl |>
+  filter(quality > 6.5, alcohol < 13.2) |>
+  arrange(desc(quality)) |>
+  select(contains("acid"), "alcohol", "type", "quality") |>
+  group_by(quality) |>
+  mutate(alcohol_mean = mean(alcohol),
+         alcohol_sd = sd(alcohol))
+```
+
+## Database Practice
+
+Connect to the Lahman database and look at the tables
+
+```{r}
+library(DBI)
+con <- dbConnect(RSQLite::SQLite(), "../R Scripts/R Course/lahman.db")
+dbListTables(con)
+```
+
+2.  Return data from the Teams table for 2015.
+
+```{r}
+tbl(con, "Teams") |>
+  filter(yearID ==2015)
+```
+
+3.  Repeat above using SQL code
+
+```{r}
+tbl(con, sql(
+  "SELECT *
+  FROM `Teams`
+  WHERE (`yearID` = 2015)"
+))
+```
+
+4.  Return all players in the hall of fame, year voted in, and category.
+
+```{r}
+
+tbl(con, "HallofFame") |>
+  filter(inducted =="Y") |>
+  select("playerID", "yearID", "category")
+```
+
+5.  Combine with People table to add nameFirst and nameLast
+
+```{r}
+tbl(con, "People")
+fame_tbl <- left_join(tbl(con, "HallofFame") |>
+  filter(inducted =="Y") |>
+  select("playerID", "yearID", "category"), 
+  tbl(con, "People") |>
+    select("playerID", "nameFirst", "nameLast"),
+  by = join_by(playerID == playerID)) |>
+  collect()
+```
+
+6.  Return playerID, G, W, and L from Managers and determine overall win/loss records for each manager. Calculate variable for percent of games won out of total games played, and sort by this variable from largest to smallest.
+
+```{r}
+managers_tbl <- tbl(con, "Managers") |>
+  select("playerID", "G", "W", "L") |>
+  group_by(playerID) |>
+  summarize(G_managed = sum(G, na.rm = TRUE),
+            Total_W = sum(W, na.rm = TRUE),
+            Total_L = sum(L, na.rm = TRUE)) |>
+  collect() |>
+  mutate(Percent_W = Total_W/G_managed) |>
+  arrange(desc(Percent_W)) |>
+  collect()
+
+```
+
+7.  Return information for only those peole who managed a team and were inducted into the hall of fame.
+
+```{r}
+inner_join(managers_tbl, fame_tbl,
+    by = join_by(playerID == playerID))
+```
